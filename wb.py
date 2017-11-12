@@ -27,7 +27,11 @@ gid_dict = {
 }
 
 # mid = '4173231579493197'      # 第一次
-mid = '4171130858872422'      # 第二次
+# mid = '4171130858872422'      # 第二次
+# mid = '4169421188803839'      # 第三次
+# mid = '4167083225495444'      # 第四次
+# mid = '4166683398278688'      # 第五次
+mid = '4166431761321859'
 gid = '4101723897939433'
 Cookie = 'SCF=AkzILPUtUsg1Lkq_XLhDQ5Z9nSxOasFTXY_lQZ-z3n7tuy08XUb2wYBQjIV4zM_VGiaR1Zd2WgP_tKMPHSq2Etg.; SUB=_2A253A8tJDeThGeRN7FEU8C3Iyj6IHXVUeLuBrDV8PUNbmtBeLRbxkW-JHw3NsF36UcWQcRoHPvt13jeMmw..; wvr=6; YF-V5-G0=32427df11f152291036145f8d346cc49; wb_cusLike_2373503412=N; YF-Page-G0=f27a36a453e657c2f4af998bd4de9419; _s_tentry=-; UOR=,weibo.com,spr_sinamkt_buy_hyww_weibo_p137; Apache=4950663848488.572.1510456104177; SINAGLOBAL=4950663848488.572.1510456104177; ULV=1510456104420:1:1:1:4950663848488.572.1510456104177:'
 # 配置结束 ————————
@@ -125,8 +129,8 @@ def get_e():
     r = requests.get(url, headers=headers)
     text = json.loads(r.text)
     html = text['data']['html']
-    with open(file, 'w', encoding='utf8') as f:
-        f.write(html)
+    # with open(file, 'w', encoding='utf8') as f:
+    #     f.write(html)
     e = etree.HTML(html)
     return e
 
@@ -166,7 +170,10 @@ def data_clean(_msg_list):
             data_type, msg_data_pre = target_data
             data_clean_func = data_clean_func_reload(data_type)
             # print('data_type, clean_func:\t', data_type, data_clean_func)
-            data_clean_func(msg_data_pre, msg_name)
+            try:
+                data_clean_func(msg_data_pre, msg_name)
+            except Exception as ee:
+                error_log(ee)
 
 
 # @log_this
@@ -260,13 +267,28 @@ def data_clean_func_reload(data_type):
     return globals()[target.clean_func]
 
 
+def error_log(error):
+    """
+    错误记录
+    """
+    with open('error.txt', 'a') as f:
+        f.write('ERROR\t{e}\nmid:\t{mid}\n'.format(
+            e=str(error),
+            mid=mid
+        ))
+
+
 if __name__ == '__main__':
     create_root_dir()
     while True:
         print('LOOP ON:')
         e_root = get_e()
         m_list = get_msg_list(e_root)
-        mid, msg_list = info_fork(m_list)
+        try:
+            mid, msg_list = info_fork(m_list)
+        except Exception as err:
+            error_log(err)
+            continue
         print('mid:\t', mid)
         Thread(target=data_clean(msg_list)).start()
         print('LOOP OFF.')
