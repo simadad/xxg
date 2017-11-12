@@ -10,8 +10,6 @@ from threading import Thread
 # 初始配置 ---------------
 # 目标用户名
 target_names = []
-# response 数据文件
-file = 'data_kj2.html'
 # 目标选择
 TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
 #
@@ -20,22 +18,19 @@ target_type = {
     'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
     'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
 }
+
+# 根目标配置，空值默认为当前项目文件夹
+root_dir = ''
 # 群 gid - 地址对照表
-root_dir = 'F:/Download/小戏骨'
 gid_dict = {
     '4101723897939433': '宝儿群',
 }
-
-# mid = '4173231579493197'      # 第一次
-# mid = '4171130858872422'      # 第二次
-# mid = '4169421188803839'      # 第三次
-# mid = '4167083225495444'      # 第四次
-# mid = '4166683398278688'      # 第五次
-mid = '4166431761321859'
+# 起始消息 id
+mid = ''
+# 群 id
 gid = '4101723897939433'
-Cookie = 'SCF=AkzILPUtUsg1Lkq_XLhDQ5Z9nSxOasFTXY_lQZ-z3n7tuy08XUb2wYBQjIV4zM_VGiaR1Zd2WgP_tKMPHSq2Etg.; SUB=_2A253A8tJDeThGeRN7FEU8C3Iyj6IHXVUeLuBrDV8PUNbmtBeLRbxkW-JHw3NsF36UcWQcRoHPvt13jeMmw..; wvr=6; YF-V5-G0=32427df11f152291036145f8d346cc49; wb_cusLike_2373503412=N; YF-Page-G0=f27a36a453e657c2f4af998bd4de9419; _s_tentry=-; UOR=,weibo.com,spr_sinamkt_buy_hyww_weibo_p137; Apache=4950663848488.572.1510456104177; SINAGLOBAL=4950663848488.572.1510456104177; ULV=1510456104420:1:1:1:4950663848488.572.1510456104177:'
+Cookie = ''
 # 配置结束 ————————
-
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
 
@@ -129,8 +124,6 @@ def get_e():
     r = requests.get(url, headers=headers)
     text = json.loads(r.text)
     html = text['data']['html']
-    # with open(file, 'w', encoding='utf8') as f:
-    #     f.write(html)
     e = etree.HTML(html)
     return e
 
