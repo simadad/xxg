@@ -7,30 +7,17 @@ from collections import namedtuple
 from threading import Thread
 # from testools.declog import log_this
 
-# 初始配置 ---------------
+# --------------- 初始配置 ---------------
 # 目标用户名
 target_names = []
-# 目标选择
-TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
-#
-target_type = {
-    'AUDIO': TargetChoice('.//div[@class="private_player_mod"]', 'audio_type_data_clean', 'amr'),
-    'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
-    'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
-}
-
 # 根目标配置，空值默认为当前项目文件夹
 root_dir = ''
-# 群 gid - 地址对照表
-gid_dict = {
-    '4101723897939433': '宝儿群',
-}
 # 起始消息 id
 mid = ''
 # 群 id
 gid = '4101723897939433'
 Cookie = ''
-# 配置结束 ————————
+# ----------------- 配置结束 ————————
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
 
@@ -42,6 +29,20 @@ data = {
     'count': '20',
     # 'mid': mid,
     # '__rnd': '',
+}
+# 命名元组 --- 匹配正则式、数据清理函数、文件扩展名
+TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
+
+# 目标数据类型 - 命名元组对照表
+target_type = {
+    'AUDIO': TargetChoice('.//div[@class="private_player_mod"]', 'audio_type_data_clean', 'amr'),
+    'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
+    'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
+}
+
+# 群 gid - 地址对照表
+gid_dict = {
+    '4101723897939433': '宝儿群',
 }
 
 headers = {
