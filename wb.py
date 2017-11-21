@@ -5,19 +5,19 @@ import requests
 from lxml.html import etree
 from collections import namedtuple
 from threading import Thread
-# from testools.declog import log_this
 
 # --------------- 初始配置 ---------------
 # 目标用户名
 target_names = []
 # 根目标配置，空值默认为当前项目文件夹
-root_dir = ''
+root_dir = r'C:\Users\AAA\Documents\PrivateFiles\MyDocument\xxg'
 # 起始消息 id
 mid = ''
 # 群 id
 gid = '4101723897939433'
-Cookie = ''
-# ----------------- 配置结束 ————————
+Cookie = 'login_sid_t=9da2eb32c3618e94ab99a7d8db4c45e1; YF-Ugrow-G0=57484c7c1ded49566c905773d5d00f82; cross_origin_proto=SSL; YF-V5-G0=b1e3c8e8ad37eca95b65a6759b3fc219; WBStorage=82ca67f06fa80da0|undefined; _s_tentry=www.google.com; UOR=www.google.com,weibo.com,www.google.com; Apache=3435881701430.0503.1511069446373; SINAGLOBAL=3435881701430.0503.1511069446373; ULV=1511069446387:1:1:1:3435881701430.0503.1511069446373:; SUB=_2A253FWf2DeThGeRN7FEU8C3Iyj6IHXVUY94-rDV8PUNbmtBeLVajkW9oVw2bY_0tnKfwO-0-kWZA-54MKg..; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=0KAg4VPrhS_UFZ; ALF=1542605606; SSOLoginState=1511069606; wvr=6; wb_cusLike_2373503412=N; YF-Page-G0=2d32d406b6cb1e7730e4e69afbffc88c'
+# ------------- 配置结束 ————————
+
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
 
@@ -100,7 +100,6 @@ def get_file_path(msg_name, data_type):
     return file_path
 
 
-# @log_this
 def _get_url():
     """
     生成访问地址
@@ -110,12 +109,10 @@ def _get_url():
     return url_pre + '&'.join(['{k}={v}'.format(k=k, v=v) for k, v in data.items()])
 
 
-# @log_this
 def __rnd():
     return str(int(time.time() * 1000))
 
 
-# @log_this
 def get_e():
     """
      接收全局变量 mid，生成页面 etree 解析器
@@ -129,7 +126,6 @@ def get_e():
     return e
 
 
-# @log_this
 def get_msg_list(e):
     """
      数据粗提取，返回 mid + 消息组，混合生成器
@@ -140,7 +136,6 @@ def get_msg_list(e):
         yield item
 
 
-# @log_this
 def info_fork(msg_list_pre):
     """
     生成器数据数据分拆
@@ -151,8 +146,7 @@ def info_fork(msg_list_pre):
     return _mid, msg_list_pre
 
 
-# @log_this
-def data_clean(_msg_list):
+def data_clean_engine(_msg_list):
     """
     数据处理分发函数
     :param _msg_list: 消息生成器
@@ -170,7 +164,6 @@ def data_clean(_msg_list):
                 error_log(ee)
 
 
-# @log_this
 def username_target_filter(_msg_list):
     """
     筛选目标用户发送的消息
@@ -185,7 +178,6 @@ def username_target_filter(_msg_list):
             yield msg_name, msg_cont
 
 
-# @log_this
 def data_target_filter(msg_cont):
     """
     筛选目标文件类型消息
@@ -199,7 +191,6 @@ def data_target_filter(msg_cont):
             return data_type, msg_data_pre
 
 
-# @log_this
 def text_type_data_clean(msg_data_pre, msg_name):
     """
     文字类型数据清洗
@@ -219,7 +210,6 @@ def text_type_data_clean(msg_data_pre, msg_name):
     print('text:\t', msg_text)
 
 
-# @log_this
 def image_type_data_clean(msg_data_pre, msg_name):
     """
     图片类型数据清洗
@@ -234,7 +224,6 @@ def image_type_data_clean(msg_data_pre, msg_name):
     print('img:\t', data_url)
 
 
-# @log_this
 def audio_type_data_clean(msg_data_pre, msg_name):
     """
     音频类型数据清洗
@@ -250,7 +239,6 @@ def audio_type_data_clean(msg_data_pre, msg_name):
     return
 
 
-# @log_this
 def data_clean_func_reload(data_type):
     """
     数据清洗函数重载
@@ -284,6 +272,6 @@ if __name__ == '__main__':
             error_log(err)
             continue
         print('mid:\t', mid)
-        Thread(target=data_clean(msg_list)).start()
+        Thread(target=data_clean_engine(msg_list)).start()
         print('LOOP OFF.')
         # break
