@@ -7,17 +7,17 @@ from collections import namedtuple
 from threading import Thread
 # from testools.declog import log_this
 
-# --------------- åˆå§‹é…ç½® ---------------
-# ç›®æ ‡ç”¨æˆ·å
+# --------------- ³õÊ¼ÅäÖÃ ---------------
+# Ä¿±êÓÃ»§Ãû
 target_names = []
-# æ ¹ç›®æ ‡é…ç½®ï¼Œç©ºå€¼é»˜è®¤ä¸ºå½“å‰é¡¹ç›®æ–‡ä»¶å¤¹
-root_dir = ''
-# èµ·å§‹æ¶ˆæ¯ id
-mid = ''
-# ç¾¤ id
-gid = '4101723897939433'
-Cookie = ''
-# ----------------- é…ç½®ç»“æŸ â€”â€”â€”â€”â€”â€”â€”â€”
+# ¸ùÄ¿±êÅäÖÃ£¬¿ÕÖµÄ¬ÈÏÎªµ±Ç°ÏîÄ¿ÎÄ¼ş¼Ğ
+root_dir = r'C:\Users\AAA\Documents'
+# ÆğÊ¼ÏûÏ¢ id
+mid = '4176660045876012'
+# Èº id
+gid = '4176659651822678'
+Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; UOR=www.google.com,weibo.com,www.google.com.hk; wvr=6; YF-Ugrow-G0=b02489d329584fca03ad6347fc915997; SSOLoginState=1511263953; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBg6z68mgoO_8yFKZbIBf99pfa1WEgeSUqAUzcsIAmfPk.; SUB=_2A253EH6BDeThGeRN7FEU8C3Iyj6IHXVUZNdJrDV8PUNbmtBeLRHNkW9NHetkT2O5Usavvo662EJT8RqbIf1R3-LP; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=0ElLrvUIqk3efQ; ALF=1542799952; YF-V5-G0=b2423472d8aef313d052f5591c93cb75; _s_tentry=login.sina.com.cn; Apache=6136087806431.84.1511263958335; ULV=1511263958378:6:6:6:6136087806431.84.1511263958335:1511230013851; YF-Page-G0=ed0857c4c190a2e149fc966e43aaf725'
+# ----------------- ÅäÖÃ½áÊø ¡ª¡ª¡ª¡ª¡ª¡ª¡ª¡ª
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
 
@@ -30,19 +30,20 @@ data = {
     # 'mid': mid,
     # '__rnd': '',
 }
-# å‘½åå…ƒç»„ --- åŒ¹é…æ­£åˆ™å¼ã€æ•°æ®æ¸…ç†å‡½æ•°ã€æ–‡ä»¶æ‰©å±•å
+# ÃüÃûÔª×é --- Æ¥ÅäÕıÔòÊ½¡¢Êı¾İÇåÀíº¯Êı¡¢ÎÄ¼şÀ©Õ¹Ãû
 TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
 
-# ç›®æ ‡æ•°æ®ç±»å‹ - å‘½åå…ƒç»„å¯¹ç…§è¡¨
+# Ä¿±êÊı¾İÀàĞÍ - ÃüÃûÔª×é¶ÔÕÕ±í
 target_type = {
     'AUDIO': TargetChoice('.//div[@class="private_player_mod"]', 'audio_type_data_clean', 'amr'),
     'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
     'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
 }
 
-# ç¾¤ gid - åœ°å€å¯¹ç…§è¡¨
+# Èº gid - µØÖ·¶ÔÕÕ±í
 gid_dict = {
-    '4101723897939433': 'å®å„¿ç¾¤',
+    '4101723897939433': '±¦¶ùÈº',
+    '4176659651822678': '²âÊÔÈº'
 }
 
 headers = {
@@ -54,7 +55,7 @@ headers = {
 
 def create_root_dir():
     """
-    åˆ›å»ºç›®å½•æ ‘
+    ´´½¨Ä¿Â¼Ê÷
     """
     root = root_dir or os.getcwd()
     for _, group_name in gid_dict.items():
@@ -74,9 +75,9 @@ def create_root_dir():
 
 def get_file_path(msg_name, data_type):
     """
-    åˆ›å»ºç”¨æˆ·å­ç›®å½•
-    :param msg_name: å‘è¨€äºº
-    :param data_type: æ•°æ®ç±»å‹
+    ´´½¨ÓÃ»§×ÓÄ¿Â¼
+    :param msg_name: ·¢ÑÔÈË
+    :param data_type: Êı¾İÀàĞÍ
     :return:
     """
     target = target_type[data_type]
@@ -103,7 +104,7 @@ def get_file_path(msg_name, data_type):
 # @log_this
 def _get_url():
     """
-    ç”Ÿæˆè®¿é—®åœ°å€
+    Éú³É·ÃÎÊµØÖ·
     """
     data['mid'] = mid
     data['__rnd'] = __rnd()
@@ -118,13 +119,15 @@ def __rnd():
 # @log_this
 def get_e():
     """
-     æ¥æ”¶å…¨å±€å˜é‡ midï¼Œç”Ÿæˆé¡µé¢ etree è§£æå™¨
+     ½ÓÊÕÈ«¾Ö±äÁ¿ mid£¬Éú³ÉÒ³Ãæ etree ½âÎöÆ÷
     """
     url = _get_url()
     # print('url:\t', url)
     r = requests.get(url, headers=headers)
     text = json.loads(r.text)
     html = text['data']['html']
+    with open('ttt.html', 'w') as f:
+        f.write(html)
     e = etree.HTML(html)
     return e
 
@@ -132,7 +135,7 @@ def get_e():
 # @log_this
 def get_msg_list(e):
     """
-     æ•°æ®ç²—æå–ï¼Œè¿”å› mid + æ¶ˆæ¯ç»„ï¼Œæ··åˆç”Ÿæˆå™¨
+     Êı¾İ´ÖÌáÈ¡£¬·µ»Ø mid + ÏûÏ¢×é£¬»ìºÏÉú³ÉÆ÷
     """
     items = e.xpath('//div[@node-type="item"]')
     yield items[0].get('mid')
@@ -143,9 +146,9 @@ def get_msg_list(e):
 # @log_this
 def info_fork(msg_list_pre):
     """
-    ç”Ÿæˆå™¨æ•°æ®æ•°æ®åˆ†æ‹†
-    :param msg_list_pre: mid<0> + msg_list<1-20> æ··åˆç”Ÿæˆå™¨
-    :return: mid, æ¶ˆæ¯ç”Ÿæˆå™¨
+    Éú³ÉÆ÷Êı¾İÊı¾İ·Ö²ğ
+    :param msg_list_pre: mid<0> + msg_list<1-20> »ìºÏÉú³ÉÆ÷
+    :return: mid, ÏûÏ¢Éú³ÉÆ÷
     """
     _mid = next(msg_list_pre)
     return _mid, msg_list_pre
@@ -154,8 +157,8 @@ def info_fork(msg_list_pre):
 # @log_this
 def data_clean(_msg_list):
     """
-    æ•°æ®å¤„ç†åˆ†å‘å‡½æ•°
-    :param _msg_list: æ¶ˆæ¯ç”Ÿæˆå™¨
+    Êı¾İ´¦Àí·Ö·¢º¯Êı
+    :param _msg_list: ÏûÏ¢Éú³ÉÆ÷
     """
     target_username_list = username_target_filter(_msg_list)
     for msg_name, msg_cont in target_username_list:
@@ -173,9 +176,9 @@ def data_clean(_msg_list):
 # @log_this
 def username_target_filter(_msg_list):
     """
-    ç­›é€‰ç›®æ ‡ç”¨æˆ·å‘é€çš„æ¶ˆæ¯
-    :param _msg_list: æ¶ˆæ¯ç”Ÿæˆå™¨
-    :return: yield æ¶ˆæ¯ item
+    É¸Ñ¡Ä¿±êÓÃ»§·¢ËÍµÄÏûÏ¢
+    :param _msg_list: ÏûÏ¢Éú³ÉÆ÷
+    :return: yield ÏûÏ¢ item
     """
     for msg in _msg_list:
         msg_name = msg.findtext('.//p[@class="bubble_name"]')
@@ -188,9 +191,9 @@ def username_target_filter(_msg_list):
 # @log_this
 def data_target_filter(msg_cont):
     """
-    ç­›é€‰ç›®æ ‡æ–‡ä»¶ç±»å‹æ¶ˆæ¯
-    :param msg_cont: æ¶ˆæ¯æ•´ä½“ç»“æ„
-    :return: æ¶ˆæ¯å†…å®¹ç»“æ„
+    É¸Ñ¡Ä¿±êÎÄ¼şÀàĞÍÏûÏ¢
+    :param msg_cont: ÏûÏ¢ÕûÌå½á¹¹
+    :return: ÏûÏ¢ÄÚÈİ½á¹¹
     """
     for data_type, target in target_type.items():
         msg_data_pre = msg_cont.find(target.pattern)
@@ -202,16 +205,16 @@ def data_target_filter(msg_cont):
 # @log_this
 def text_type_data_clean(msg_data_pre, msg_name):
     """
-    æ–‡å­—ç±»å‹æ•°æ®æ¸…æ´—
-    :param msg_data_pre: æ¶ˆæ¯å†…å®¹ç»“æ„
-    :param msg_name: å‘å¸ƒäºº
+    ÎÄ×ÖÀàĞÍÊı¾İÇåÏ´
+    :param msg_data_pre: ÏûÏ¢ÄÚÈİ½á¹¹
+    :param msg_name: ·¢²¼ÈË
     :return:
     """
-    # TODO å¤„ç†è¡¨æƒ…å†…å®¹
+    # TODO ´¦Àí±íÇéÄÚÈİ
     file_path = get_file_path(msg_name, 'TEXT')
     msg_text = msg_data_pre.text
     if not msg_text:
-        msg_text = '<è¡¨æƒ…>\n'
+        msg_text = '<±íÇé>\n'
     else:
         msg_text += '\n'
     with open(file_path, 'a', encoding='utf8') as f:
@@ -222,9 +225,9 @@ def text_type_data_clean(msg_data_pre, msg_name):
 # @log_this
 def image_type_data_clean(msg_data_pre, msg_name):
     """
-    å›¾ç‰‡ç±»å‹æ•°æ®æ¸…æ´—
-    :param msg_data_pre: æ¶ˆæ¯å†…å®¹ç»“æ„
-    :param msg_name: å‘å¸ƒäºº
+    Í¼Æ¬ÀàĞÍÊı¾İÇåÏ´
+    :param msg_data_pre: ÏûÏ¢ÄÚÈİ½á¹¹
+    :param msg_name: ·¢²¼ÈË
     """
     data_url = msg_data_pre.xpath('.//ul//a/@href')[1]
     r = requests.get(data_url, headers=headers)
@@ -237,9 +240,9 @@ def image_type_data_clean(msg_data_pre, msg_name):
 # @log_this
 def audio_type_data_clean(msg_data_pre, msg_name):
     """
-    éŸ³é¢‘ç±»å‹æ•°æ®æ¸…æ´—
-    :param msg_data_pre: æ¶ˆæ¯å†…å®¹ç»“æ„
-    :param msg_name: å‘å¸ƒäºº
+    ÒôÆµÀàĞÍÊı¾İÇåÏ´
+    :param msg_data_pre: ÏûÏ¢ÄÚÈİ½á¹¹
+    :param msg_name: ·¢²¼ÈË
     """
     data_url = msg_data_pre.xpath('.//a[last()]/@href')[0]
     r = requests.get(data_url, headers=headers)
@@ -253,9 +256,9 @@ def audio_type_data_clean(msg_data_pre, msg_name):
 # @log_this
 def data_clean_func_reload(data_type):
     """
-    æ•°æ®æ¸…æ´—å‡½æ•°é‡è½½
-    :param data_type: æ•°æ®ç±»å‹
-    :return: æ•°æ®æ¸…æ´—å‡½æ•°
+    Êı¾İÇåÏ´º¯ÊıÖØÔØ
+    :param data_type: Êı¾İÀàĞÍ
+    :return: Êı¾İÇåÏ´º¯Êı
     """
     target = target_type[data_type]
     return globals()[target.clean_func]
@@ -263,7 +266,7 @@ def data_clean_func_reload(data_type):
 
 def error_log(error):
     """
-    é”™è¯¯è®°å½•
+    ´íÎó¼ÇÂ¼
     """
     with open('error.txt', 'a') as f:
         f.write('ERROR\t{e}\nmid:\t{mid}\n'.format(
