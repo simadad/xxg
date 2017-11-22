@@ -3,6 +3,7 @@ import json
 import time
 import requests
 from queue import Queue
+from threading import Thread
 from lxml.html import etree
 from collections import namedtuple
 from requests.exceptions import ConnectionError
@@ -12,19 +13,18 @@ from concurrent.futures import ThreadPoolExecutor, wait
 # --------------- 初始配置 ---------------
 # 群 id
 gid = '4167757236964650'
-Cookie = 'login_sid_t=9da2eb32c3618e94ab99a7d8db4c45e1; YF-Ugrow-G0=57484c7c1ded49566c905773d5d00f82; cross_origin_proto=SSL; YF-V5-G0=b1e3c8e8ad37eca95b65a6759b3fc219; WBStorage=82ca67f06fa80da0|undefined; _s_tentry=www.google.com; UOR=www.google.com,weibo.com,www.google.com; Apache=3435881701430.0503.1511069446373; SINAGLOBAL=3435881701430.0503.1511069446373; ULV=1511069446387:1:1:1:3435881701430.0503.1511069446373:; SUB=_2A253FWf2DeThGeRN7FEU8C3Iyj6IHXVUY94-rDV8PUNbmtBeLVajkW9oVw2bY_0tnKfwO-0-kWZA-54MKg..; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=0KAg4VPrhS_UFZ; ALF=1542605606; SSOLoginState=1511069606; wvr=6; wb_cusLike_2373503412=N; YF-Page-G0=2d32d406b6cb1e7730e4e69afbffc88c'
+Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; UOR=www.google.com,weibo.com,www.google.com.hk; wvr=6; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBDB89EhSPIpRQ2ue1jkJIPl-vZRbZmFWz7_NAPFpj8C0.; SUHB=0BL5lyhuaUnBjw; ALF=1542872774; YF-Ugrow-G0=56862bac2f6bf97368b95873bc687eef; SUB=_2A253EeUEDeThGeRN7FEU8C3Iyj6IHXVUZ1HMrDV8PUNbn9BeLRalkW9NHetkT1SiYr9eUROFhLPbHQagGkrUd25d; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; YF-V5-G0=55fccf7be1706b6814a78384fa94e30c; _s_tentry=login.sina.com.cn; Apache=5107523230161.719.1511363927780; ULV=1511363927784:8:8:8:5107523230161.719.1511363927780:1511336777834; wb_cusLike_2373503412=N; YF-Page-G0=b9004652c3bb1711215bacc0d9b6f2b5'
 # 根目标配置，空值默认为当前项目文件夹
 root_dir = r'C:\Users\AAA\Documents\PrivateFiles\MyDocument\xxg'
 # 目标用户名，空值默认为匹配所有用户
 target_names = []
+# 断线重连次数
+reconnect_times = 5
 # 起始消息 mid，空值默认为当前最新一条消息
-mid = ''
-# 已记录的最新一条消息 id，空值默认为 etc/newest_mid.txt 中记录的数据
-mid_newest = ''
-# 已记录的最早一条消息 id，空值默认为 etc/earliest.txt 中记录的数据
-mid_earliest = ''
+# mid_on = ''
+# 结束消息 mid, 空值默认为第一条历史记录消息
+# mid_off = ''
 # ------------- 配置结束 ————————
-
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
 
@@ -95,19 +95,21 @@ def init_root_dir():
             _get_or_create_dir(dir_group, t)
 
 
-def _get_or_set_mid(mid_file):
+def _get_or_set_mid(mid_file, _mid=''):
     """
-    读取并创建初始 mid
-    :param mid_file:
+    读取或储存mid
+    :param mid_file: mid_earliest/mid_latest
+    :param _mid: mid
     :return:
     """
     root = _get_root_dir()
     mid_file_path = '{root}/data/{mid_file}'.format(root=root, mid_file=mid_file)
-    if not os.path.exists(mid_file_path):
-        with open(mid_file_path, 'w'):
-            pass
-    with open(mid_file_path) as f:
-        _mid = f.read()
+    if not os.path.exists(mid_file_path) or _mid:
+        with open(mid_file_path, 'w')as f:
+            f.write(_mid)
+    else:
+        with open(mid_file_path) as f:
+            _mid = f.read()
     return _mid
 
 
@@ -126,19 +128,19 @@ def _get_is_continue():
         else:
             print('输入错误！')
 
+
 def init_mid():
     """
-    设定 mid 初始值，mid_earliest、mid_latest、mid
+    设定 mid 初始值，ON-OFF
     """
-    global mid_earliest, mid_newest, mid
+    # global mid_on, mid_off
+    mid_on = mid_off = ''
     is_continue = _get_is_continue()
-    if not mid_earliest:
-        mid_earliest = _get_or_set_mid('earliest.txt')
-    if not mid_newest:
-        mid_newest = _get_or_set_mid('newest.txt')
     if is_continue:
-        mid = mid_earliest
-        mid_newest = ''
+        mid_on = _get_or_set_mid('earliest.txt')
+    else:
+        mid_off = _get_or_set_mid('newest.txt')
+    return mid_on, mid_off
 
 
 # def set_mid(_mid=None, is_final=True):
@@ -226,7 +228,8 @@ def get_msg_list(e):
     """
     items = e.xpath('//div[@node-type="item"]')
     for item in items[::-1]:
-        yield item
+        mid = item.get('mid')
+        yield mid, item
 
 
 '''
@@ -241,35 +244,35 @@ def info_fork(msg_list_pre):
 '''
 
 
-def data_clean_engine(_msg_list):
+def data_clean_engine(mid, item):
     """
     数据处理分发函数
-    :param _msg_list: 消息生成器
     """
-    global mid
-    _mid = mid
-    pool_data = ThreadPoolExecutor(20)
-    ts_data = []
-    target_username_list = username_target_filter(_msg_list)
-    for _mid, msg_name, msg_cont in target_username_list:
-        target_data = data_target_filter(msg_cont)
-        if target_data:
-            data_type, msg_data_pre = target_data
-            data_clean_func = data_clean_func_reload(data_type)
-            # print('data_type, clean_func:\t', data_type, data_clean_func)
-            # t = Thread(target=data_clean_func, args=(msg_data_pre, msg_name))
+    # global mid
+    # _mid = mid
+    # pool_data = ThreadPoolExecutor(20)
+    # ts_data = []
+    # target_username_list = username_target_filter(_msg_list)
+    # for _mid, msg_name, msg_cont in target_username_list:
+    target_data = data_target_filter(item)
+    if target_data:
+        msg_name, data_type, msg_data_pre = target_data
+        data_clean_func = data_clean_func_reload(data_type)
+        # print('data_type, clean_func:\t', data_type, data_clean_func)
+        # t = Thread(target=data_clean_func, args=(msg_data_pre, msg_name))
+        for i in range(1, 6):
             try:
-                t_data = pool_data.submit(data_clean_func, msg_data_pre, msg_name)
-                ts_data.append(t_data)
-            except Exception as ee:
-                error_msg = 'data clean error\n{ee}'.format(ee=str(ee))
-                print(error_msg)
-                error_log(error_msg)
-            else:
-                mid = _mid
-    else:
-        q_mid.put((_mid, False))
-        wait(ts_data)
+                data_clean_func(msg_data_pre, msg_name)
+                break
+            except Exception as error:
+                error_msg = 'data clean error\n{e}'.format(e=str(error))
+                # print(error_msg)
+                error_log(error_msg, mid, i)
+    #     else:
+    #         mid = _mid
+    # else:
+    #     q_mid.put((_mid, False))
+    #     wait(ts_data)
 
 
 def username_target_filter(_msg_list):
@@ -291,17 +294,19 @@ def username_target_filter(_msg_list):
             break
 
 
-def data_target_filter(msg_cont):
+def data_target_filter(item):
     """
     筛选目标文件类型消息
-    :param msg_cont: 消息整体结构
+    :param item: 消息整体结构
     :return: 消息内容结构
     """
+    msg_name = item.findtext('.//p[@class="bubble_name"]')
+    msg_cont = item.find('.//div[@class="cont"]')
     for data_type, target in target_type.items():
         msg_data_pre = msg_cont.find(target.pattern)
         if msg_data_pre is not None:
             # print('data_type, pre_data_len:\t', data_type, len(msg_data_pre))
-            return data_type, msg_data_pre
+            return msg_name, data_type, msg_data_pre
 
 
 def text_type_data_clean(msg_data_pre, msg_name):
@@ -364,16 +369,17 @@ def data_clean_func_reload(data_type):
     return globals()[target.clean_func]
 
 
-def error_log(error):
+def error_log(error, mid, times=0):
     """
     错误记录
     """
-    root = get_root_dir()
+    root = _get_root_dir()
     error_file = r'{root}\etc\error.txt'.format(root=root)
     with open(error_file, 'a') as f:
-        f.write('mid:\t{mid}\nERROR:\t{e}\n\n'.format(
+        f.write('mid:\t{mid}\ttimes:\t{times}\n{e}\n\n'.format(
             e=str(error),
-            mid=mid
+            mid=mid,
+            times=times
         ))
 
 
@@ -390,20 +396,79 @@ def is_final(_mid, is_timeout):
         return False
 
 
+def
+
+
+def thr_router():
+    """
+    调度线程
+    """
+    mid = mid_on
+    while True:
+        q_router_to_process.put(mid)
+        mid_items = q_process_to_router.get()
+        for mid, item in mid_items:
+            if mid == mid_off:
+                q_router_to_process.put(False)
+                return
+            else:
+                data_clean_engine(mid, item)
+                # msg_name = item.findtext('.//p[@class="bubble_name"]')
+                # msg_cont = item.find('.//div[@class="cont"]')
+
+
+def thr_process():
+    """
+    进度线程
+    """
+    times = 0
+    while True:
+        # 从调度线程获取 mid，获取值为 False，循环结束
+        mid = q_router_to_process.get()
+        if not mid:
+            break
+        try:
+            e_root = get_e(mid)
+        except ConnectionError as error:
+            times += 1
+            error_log(error, mid, times)
+            if times <= reconnect_times:
+                q_router_to_process.put(mid)
+                continue
+            else:
+                break
+        msg_list = get_msg_list(e_root)
+        q_process_to_router.put(msg_list)
+        times = 0
+
+
 if __name__ == '__main__':
+    # ------------------- init on ---------------------
     init_root_dir()
     # set_mid()
-    init_mid()
-    q_mid = Queue()
-    q_mid.put((mid, False))
-    pool_msg = ThreadPoolExecutor(5)
-    ts_msg = []
+    mid_on, mid_off = init_mid()
+    q_control = Queue(1)
+    q_router_to_process = Queue(1)
+    q_process_to_router = Queue(1)
+    q_router_to_source = Queue(1)
+    # q_mid.put((mid, False))
+    pool_items = ThreadPoolExecutor(20)
+    ts_items = []
+    q_mid.put(mid_on)
+    ts = [Thread(target=thr_process), Thread(target=thr_router())]
+    for t in ts:
+        t.start()
+    # ------------------ init off ------------------------
+    print('LOOP ON:')
+    input(u'回车暂停爬取\n')
+    q_control.put(True)
+    for t in ts:
+        t.join()
     while True:
-        print('LOOP ON:')
-        mid_next_page, to_repeat = q_mid.get(timeout=10)
-        print('mid:\t', mid, '\tlast_mid:\t', last_mid, '\tmid_next_page:\t', mid_next_page, '\tto_repeat:\t', to_repeat)
-        if mid_next_page and mid_next_page == last_mid:
-            break
+        # mid_next_page, to_repeat = q_mid.get(timeout=10)
+        # print('mid:\t', mid, '\tlast_mid:\t', last_mid, '\tmid_next_page:\t', mid_next_page, '\tto_repeat:\t', to_repeat)
+        # if mid_next_page and mid_next_page == last_mid:
+        #     break
         try:
             e_root = get_e(mid_next_page)
         except ConnectionError as e:
