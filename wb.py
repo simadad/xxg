@@ -2,6 +2,7 @@ import os
 import json
 import time
 import requests
+import threading
 from queue import Queue
 from threading import Thread
 from lxml.html import etree
@@ -12,18 +13,14 @@ from concurrent.futures import ThreadPoolExecutor, wait
 
 # --------------- 初始配置 ---------------
 # 群 id
-gid = '4167757236964650'
-Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; UOR=www.google.com,weibo.com,www.google.com.hk; wvr=6; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBDB89EhSPIpRQ2ue1jkJIPl-vZRbZmFWz7_NAPFpj8C0.; SUHB=0BL5lyhuaUnBjw; ALF=1542872774; YF-Ugrow-G0=56862bac2f6bf97368b95873bc687eef; SUB=_2A253EeUEDeThGeRN7FEU8C3Iyj6IHXVUZ1HMrDV8PUNbn9BeLRalkW9NHetkT1SiYr9eUROFhLPbHQagGkrUd25d; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; YF-V5-G0=55fccf7be1706b6814a78384fa94e30c; _s_tentry=login.sina.com.cn; Apache=5107523230161.719.1511363927780; ULV=1511363927784:8:8:8:5107523230161.719.1511363927780:1511336777834; wb_cusLike_2373503412=N; YF-Page-G0=b9004652c3bb1711215bacc0d9b6f2b5'
+gid = '4176659651822678'
+Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; wvr=6; UOR=www.google.com,weibo.com,login.sina.com.cn; YF-Ugrow-G0=57484c7c1ded49566c905773d5d00f82; SSOLoginState=1511494763; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPB8KjwX4HUdelT_lgMj4u5x0aAWjWRPlplE1e8S0NTzeY.; SUB=_2A253E-Q7DeThGeRN7FEU8C3Iyj6IHXVUaVLzrDV8PUNbmtBeLWTHkW9NHetkT5CDQNFpfszHMVxy6BeVqLS36qXE; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=0z1RxD-sDIs6Ti; ALF=1543030763; YF-V5-G0=1312426fba7c62175794755e73312c7d; _s_tentry=login.sina.com.cn; Apache=536768942904.7351.1511494767344; wb_cusLike_2373503412=N; ULV=1511494767352:13:13:13:536768942904.7351.1511494767344:1511461778949; YF-Page-G0=324e50a7d7f9947b6aaff9cb1680413f'
 # 根目标配置，空值默认为当前项目文件夹
 root_dir = r'C:\Users\AAA\Documents\PrivateFiles\MyDocument\xxg'
 # 目标用户名，空值默认为匹配所有用户
 target_names = []
 # 断线重连次数
 reconnect_times = 5
-# 起始消息 mid，空值默认为当前最新一条消息
-# mid_on = ''
-# 结束消息 mid, 空值默认为第一条历史记录消息
-# mid_off = ''
 # ------------- 配置结束 ————————
 
 url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
@@ -51,6 +48,7 @@ target_type = {
 gid_dict = {
     '4101723897939433': '宝儿群',
     '4167757236964650': '红剪花',
+    '4176659651822678': '测试群'
 }
 
 headers = {
@@ -85,32 +83,14 @@ def init_root_dir():
     """
     创建目录树----etc 目录、data 目录
     """
-    set_mid()
     dir_root = _get_root_dir()
     _get_or_create_dir(dir_root, 'etc')
     dir_data = _get_or_create_dir(dir_root, 'data')
-    for _, group_name in gid_dict.items():
-        dir_group = _get_or_create_dir(dir_data, group_name)
-        for t in target_type:
-            _get_or_create_dir(dir_group, t)
-
-
-def _get_or_set_mid(mid_file, _mid=''):
-    """
-    读取或储存mid
-    :param mid_file: mid_earliest/mid_latest
-    :param _mid: mid
-    :return:
-    """
-    root = _get_root_dir()
-    mid_file_path = '{root}/data/{mid_file}'.format(root=root, mid_file=mid_file)
-    if not os.path.exists(mid_file_path) or _mid:
-        with open(mid_file_path, 'w')as f:
-            f.write(_mid)
-    else:
-        with open(mid_file_path) as f:
-            _mid = f.read()
-    return _mid
+    group_name = gid_dict[gid]
+    dir_group = _get_or_create_dir(dir_data, group_name)
+    for _type in target_type:
+        _get_or_create_dir(dir_group, _type)
+    return dir_group
 
 
 def _get_is_continue():
@@ -118,53 +98,43 @@ def _get_is_continue():
     用户交互，判断是否继续之前下载
     """
     while True:
-        is_continue = input(r'是否继续上次下载？请输入： Y/N')
+        is_continue = input(u'是否继续上次下载？请输入: Y/N\n')
         if is_continue == 'Y' or is_continue == 'y':
-            print(r'继续上次下载')
+            print(u'继续上次下载...')
             return True
         elif is_continue == 'N' or is_continue == 'n':
-            print(r'下载新数据')
+            print(u'下载新数据...')
             return False
         else:
-            print('输入错误！')
+            print(u'输入错误！')
+
+
+def _get_or_set_mid(mid_file, mid=''):
+    """
+    读取或设置 mid 记录
+    """
+    mid_file_path = '{group_path}/{file}'.format(group_path=group_path, file=mid_file)
+    if mid is not None:
+        with open(mid_file_path, 'w') as f:
+            f.write(mid)
+    else:
+        with open(mid_file_path) as f:
+            mid = f.read()
+    return mid
 
 
 def init_mid():
     """
     设定 mid 初始值，ON-OFF
     """
-    # global mid_on, mid_off
-    mid_on = mid_off = ''
+    _mid_on = _mid_off = ''
     is_continue = _get_is_continue()
     if is_continue:
-        mid_on = _get_or_set_mid('earliest.txt')
+        _mid_on = _get_or_set_mid('earliest', _mid_on)
     else:
-        mid_off = _get_or_set_mid('newest.txt')
-    return mid_on, mid_off
+        _mid_off = _get_or_set_mid('newest', _mid_off)
+    return _mid_on, _mid_off
 
-
-# def set_mid(_mid=None, is_final=True):
-#     """
-#     读取并设置
-#     """
-#     etc_dir = '{root}/etc'.format(root=get_root_dir())
-#     latest_mid_file = '{etc}/last_mid.txt'.format(etc=etc_dir)
-#     earliest_mid_file = '{etc}/earliest_mid.txt'.format(etc=etc_dir)
-#     global mid_latest, mid_earliest
-#     if _mid:
-#         if is_final:
-#             mid_latest= _mid
-#         with open(latest_mid_file, 'w') as f:
-#             f.write(_mid)
-#     elif not os.path.exists(etc_dir):
-#         os.mkdir(etc_dir)
-#         mid_latest= ''
-#         with open(latest_mid_file, 'w') as f:
-#             f.write(mid_latest)
-#     else:
-#         with open(latest_mid_file) as f:
-#             mid_latest= f.read()
-#
 
 def get_file_path(msg_name, data_type):
     """
@@ -174,8 +144,8 @@ def get_file_path(msg_name, data_type):
     :return: 文件路径
     """
     target = target_type[data_type]
-    root = get_root_dir()
-    file_dir = '{root_dir}/{group_name}/{type}/{username}'.format(
+    root = _get_root_dir()
+    file_dir = '{root_dir}/data/{group_name}/{type}/{username}'.format(
         root_dir=root,
         group_name=gid_dict[gid],
         type=data_type,
@@ -216,8 +186,8 @@ def get_e(_mid):
     r = requests.get(url, headers=headers)
     text = json.loads(r.text)
     html = text['data']['html']
-    with open('ttt_html.html', 'w', encoding='utf8') as f:
-        f.write(html)
+    # with open('ttt_html.html', 'w', encoding='utf8') as f:
+    #     f.write(html)
     e = etree.HTML(html)
     return e
 
@@ -232,28 +202,11 @@ def get_msg_list(e):
         yield mid, item
 
 
-'''
-def info_fork(msg_list_pre):
-    """
-    生成器数据数据分拆
-    :param msg_list_pre: mid<0> + msg_list<1-20> 混合生成器
-    :return: mid, 消息生成器
-    """
-    _mid = next(msg_list_pre)
-    return _mid, msg_list_pre
-'''
-
-
 def data_clean_engine(mid, item):
     """
     数据处理分发函数
     """
-    # global mid
-    # _mid = mid
-    # pool_data = ThreadPoolExecutor(20)
-    # ts_data = []
-    # target_username_list = username_target_filter(_msg_list)
-    # for _mid, msg_name, msg_cont in target_username_list:
+    print('mid_engine:\t', mid)
     target_data = data_target_filter(item)
     if target_data:
         msg_name, data_type, msg_data_pre = target_data
@@ -268,30 +221,6 @@ def data_clean_engine(mid, item):
                 error_msg = 'data clean error\n{e}'.format(e=str(error))
                 # print(error_msg)
                 error_log(error_msg, mid, i)
-    #     else:
-    #         mid = _mid
-    # else:
-    #     q_mid.put((_mid, False))
-    #     wait(ts_data)
-
-
-def username_target_filter(_msg_list):
-    """
-    筛选目标用户发送的消息，判断历史记录
-    :param _msg_list: 消息生成器
-    :return: yield 消息 item
-    """
-    for msg in _msg_list:
-        _mid = msg.get('mid')
-        msg_name = msg.findtext('.//p[@class="bubble_name"]')
-        if not target_names or msg_name in target_names:
-            msg_cont = msg.find('.//div[@class="cont"]')
-            # print('msg_name, msg_cont_len:\t', msg_name, len(msg_cont))
-            yield _mid, msg_name, msg_cont
-        if mid_latest== _mid:
-            # root = get_root_dir()
-            # set_last_mid(root, _mid)
-            break
 
 
 def data_target_filter(item):
@@ -383,38 +312,31 @@ def error_log(error, mid, times=0):
         ))
 
 
-def is_final(_mid, is_timeout):
-    """
-    爬取完毕判断
-    :param _mid: 
-    :param is_timeout:
-    :return:
-    """
-    if (mid_earliest or not is_timeout) and _mid == mid_earliest:
-        return True
-    else:
-        return False
-
-
-def
-
-
 def thr_router():
     """
     调度线程
     """
-    mid = mid_on
+    _earliest_mid = mid = mid_on
     while True:
+        print('mid_router:\t', mid)
         q_router_to_process.put(mid)
         mid_items = q_process_to_router.get()
         for mid, item in mid_items:
-            if mid == mid_off:
+            # 结束循环条件一，当前 mid 等于 mid_off
+            if mid == mid_off or program_pause:
                 q_router_to_process.put(False)
+                print('thr_router return')
                 return
             else:
-                data_clean_engine(mid, item)
-                # msg_name = item.findtext('.//p[@class="bubble_name"]')
-                # msg_cont = item.find('.//div[@class="cont"]')
+                thr = pool_items.submit(data_clean_engine, mid, item)
+                ts_items.append(thr)
+        if _earliest_mid == mid or program_pause:
+            q_router_to_process.put(False)
+            print('thr_router break')
+            break
+        else:
+            _earliest_mid = mid
+            # TODO 更新 earliest_mid
 
 
 def thr_process():
@@ -425,7 +347,9 @@ def thr_process():
     while True:
         # 从调度线程获取 mid，获取值为 False，循环结束
         mid = q_router_to_process.get()
-        if not mid:
+        print('mid_process:\t', mid)
+        if mid is False:
+            print('thr_process break')
             break
         try:
             e_root = get_e(mid)
@@ -436,6 +360,7 @@ def thr_process():
                 q_router_to_process.put(mid)
                 continue
             else:
+                print('thr_process break')
                 break
         msg_list = get_msg_list(e_root)
         q_process_to_router.put(msg_list)
@@ -444,47 +369,28 @@ def thr_process():
 
 if __name__ == '__main__':
     # ------------------- init on ---------------------
-    init_root_dir()
-    # set_mid()
+    group_path = init_root_dir()
     mid_on, mid_off = init_mid()
-    q_control = Queue(1)
+    program_pause = False
     q_router_to_process = Queue(1)
     q_process_to_router = Queue(1)
     q_router_to_source = Queue(1)
-    # q_mid.put((mid, False))
     pool_items = ThreadPoolExecutor(20)
     ts_items = []
-    q_mid.put(mid_on)
-    ts = [Thread(target=thr_process), Thread(target=thr_router())]
+    ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
+    print(444444, threading.active_count())
     for t in ts:
         t.start()
+    print(55555, threading.active_count())
     # ------------------ init off ------------------------
     print('LOOP ON:')
     input(u'回车暂停爬取\n')
-    q_control.put(True)
+    # q_control.put(True)
+    program_pause = True
+    print(11111, threading.active_count())
     for t in ts:
         t.join()
-    while True:
-        # mid_next_page, to_repeat = q_mid.get(timeout=10)
-        # print('mid:\t', mid, '\tlast_mid:\t', last_mid, '\tmid_next_page:\t', mid_next_page, '\tto_repeat:\t', to_repeat)
-        # if mid_next_page and mid_next_page == last_mid:
-        #     break
-        try:
-            e_root = get_e(mid_next_page)
-        except ConnectionError as e:
-            e_msg = 'get_e_error\n{e}'.format(e=str(e))
-            error_log(e_msg)
-            set_last_mid(mid, False)
-            q_mid.put((mid_next_page, True))
-            print(e_msg)
-            continue
-        msg_list = get_msg_list(e_root)
-        t_msg = pool_msg.submit(data_clean_engine, msg_list)
-        ts_msg.append(t_msg)
-    wait(ts_msg)
-    set_last_mid(mid)
+    print(2222, threading.active_count())
+    wait(ts_items)
+    print(3333, threading.active_count())
     print('LOOP OFF.')
-
-
-
-# TODO earliest_mid  and last_mid
