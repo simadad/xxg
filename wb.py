@@ -321,18 +321,21 @@ def thr_router():
         print('mid_router:\t', mid)
         q_router_to_process.put(mid)
         mid_items = q_process_to_router.get()
+        if not mid_items:
+            print('thr_router:\tbreak')
+            break
         for mid, item in mid_items:
             # 结束循环条件一，当前 mid 等于 mid_off
             if mid == mid_off or program_pause:
                 q_router_to_process.put(False)
-                print('thr_router return')
+                print('thr_router:\treturn')
                 return
             else:
                 thr = pool_items.submit(data_clean_engine, mid, item)
                 ts_items.append(thr)
         if _earliest_mid == mid or program_pause:
             q_router_to_process.put(False)
-            print('thr_router break')
+            print('thr_router:\tbreak')
             break
         else:
             _earliest_mid = mid
@@ -349,7 +352,7 @@ def thr_process():
         mid = q_router_to_process.get()
         print('mid_process:\t', mid)
         if mid is False:
-            print('thr_process break')
+            print('thr_process:\tbreak')
             break
         try:
             e_root = get_e(mid)
@@ -360,7 +363,8 @@ def thr_process():
                 q_router_to_process.put(mid)
                 continue
             else:
-                print('thr_process break')
+                print('thr_process:\tbreak')
+                q_process_to_router.put(False)
                 break
         msg_list = get_msg_list(e_root)
         q_process_to_router.put(msg_list)
