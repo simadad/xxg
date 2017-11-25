@@ -1,3 +1,4 @@
+import re
 import os
 import json
 import time
@@ -14,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 # --------------- 初始配置 ---------------
 # 群 id
 gid = '4176659651822678'
-Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; wvr=6; UOR=www.google.com,weibo.com,login.sina.com.cn; YF-Ugrow-G0=57484c7c1ded49566c905773d5d00f82; SSOLoginState=1511494763; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPB8KjwX4HUdelT_lgMj4u5x0aAWjWRPlplE1e8S0NTzeY.; SUB=_2A253E-Q7DeThGeRN7FEU8C3Iyj6IHXVUaVLzrDV8PUNbmtBeLWTHkW9NHetkT5CDQNFpfszHMVxy6BeVqLS36qXE; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=0z1RxD-sDIs6Ti; ALF=1543030763; YF-V5-G0=1312426fba7c62175794755e73312c7d; _s_tentry=login.sina.com.cn; Apache=536768942904.7351.1511494767344; wb_cusLike_2373503412=N; ULV=1511494767352:13:13:13:536768942904.7351.1511494767344:1511461778949; YF-Page-G0=324e50a7d7f9947b6aaff9cb1680413f'
+Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; wvr=6; UOR=www.google.com,weibo.com,login.sina.com.cn; YF-Ugrow-G0=56862bac2f6bf97368b95873bc687eef; login_sid_t=08250c8ec0fe5f0339a8b672222eae9b; cross_origin_proto=SSL; YF-V5-G0=3d0866500b190395de868745b0875841; WBStorage=82ca67f06fa80da0|undefined; _s_tentry=passport.weibo.com; Apache=3471385025918.8516.1511599490149; ULV=1511599490162:14:14:14:3471385025918.8516.1511599490149:1511494767352; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBt3XmPR-UdUOuUOQSZ3vjl4rW7rbmA-XNuQu9B0RIl9A.; SUB=_2A253HV3MDeThGeRN7FEU8C3Iyj6IHXVUa8gErDV8PUNbmtANLRjEkW9NHetkT1sGu3HNCMTc_4cwCCgdQPN8O9aC; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=05irf0Wq06Qauj; ALF=1543135516; SSOLoginState=1511599516; wb_cusLike_2373503412=N; YF-Page-G0=19f6802eb103b391998cb31325aed3bc'
 # 根目标配置，空值默认为当前项目文件夹
 root_dir = r'C:\Users\AAA\Documents\PrivateFiles\MyDocument\xxg'
 # 目标用户名，空值默认为匹配所有用户
@@ -58,6 +59,20 @@ headers = {
 }
 
 
+def get_and_update_newest_mid():
+    """
+    获取并更新最新 mid
+    """
+    url = 'https://weibo.com/message/history?gid={gid}&type=2'.format(gid=gid)
+    r = requests.get(url, headers=headers)
+    mid = re.findall(r'mid=(\d+)', r.text)[-1]
+    newest_mid_path = '{group_path}/NEWEST'.format(group_path=group_path)
+    with open(newest_mid_path, 'w') as f:
+        print('newest_mid:\t', mid)
+        f.write(mid)
+    return mid
+
+
 def _get_root_dir():
     """
     获取根目录
@@ -73,10 +88,12 @@ def _get_or_create_dir(root, sub):
     :param sub: 子目录
     :return: 目录路径
     """
+    is_new_dir = False
     path = '{root}/{sub}'.format(root=root, sub=sub)
     if not os.path.exists(path):
         os.mkdir(path)
-    return path
+        is_new_dir = True
+    return path, is_new_dir
 
 
 def init_root_dir():
@@ -85,24 +102,32 @@ def init_root_dir():
     """
     dir_root = _get_root_dir()
     _get_or_create_dir(dir_root, 'etc')
-    dir_data = _get_or_create_dir(dir_root, 'data')
+    dir_data, is_new_dir = _get_or_create_dir(dir_root, 'data')
     group_name = gid_dict[gid]
-    dir_group = _get_or_create_dir(dir_data, group_name)
+    print(u'准备爬取群组:\t', group_name)
+    dir_group, is_new_dir = _get_or_create_dir(dir_data, group_name)
     for _type in target_type:
         _get_or_create_dir(dir_group, _type)
-    return dir_group
+    return dir_group, is_new_dir
 
 
-def _get_is_continue():
+def get_is_continue():
     """
     用户交互，判断是否继续之前下载
     """
+    if is_first_time:
+        print(u'首次爬取，请耐心等候，中止程序请回车')
+        return False
+    finished_mark = '{group_path}/FINISHED'.format(group_path=group_path)
+    if os.path.exists(finished_mark):
+        print(u'下载新数据...')
+        return False
     while True:
-        is_continue = input(u'是否继续上次下载？请输入: Y/N\n')
-        if is_continue == 'Y' or is_continue == 'y':
+        _is_continue = input(u'是否继续上次下载？请输入: Y/N\n')
+        if _is_continue == 'Y' or _is_continue == 'y':
             print(u'继续上次下载...')
             return True
-        elif is_continue == 'N' or is_continue == 'n':
+        elif _is_continue == 'N' or _is_continue == 'n':
             print(u'下载新数据...')
             return False
         else:
@@ -114,7 +139,7 @@ def _get_or_set_mid(mid_file, mid=''):
     读取或设置 mid 记录
     """
     mid_file_path = '{group_path}/{file}'.format(group_path=group_path, file=mid_file)
-    if mid is not None:
+    if mid or is_first_time:
         with open(mid_file_path, 'w') as f:
             f.write(mid)
     else:
@@ -127,12 +152,14 @@ def init_mid():
     """
     设定 mid 初始值，ON-OFF
     """
-    _mid_on = _mid_off = ''
-    is_continue = _get_is_continue()
     if is_continue:
-        _mid_on = _get_or_set_mid('earliest', _mid_on)
+        _mid_on = _get_or_set_mid('EARLIEST')
+        _mid_off = ''
     else:
-        _mid_off = _get_or_set_mid('newest', _mid_off)
+        _mid_off = _get_or_set_mid('NEWEST')
+        print('init_mid_off:\t', _mid_off)
+        _mid_on = get_and_update_newest_mid()
+        print('init_mid_on:\t', _mid_on)
     return _mid_on, _mid_off
 
 
@@ -206,7 +233,6 @@ def data_clean_engine(mid, item):
     """
     数据处理分发函数
     """
-    print('mid_engine:\t', mid)
     target_data = data_target_filter(item)
     if target_data:
         msg_name, data_type, msg_data_pre = target_data
@@ -316,30 +342,35 @@ def thr_router():
     """
     调度线程
     """
+    global mid_off, is_loop_finished
     _earliest_mid = mid = mid_on
     while True:
-        print('mid_router:\t', mid)
         q_router_to_process.put(mid)
         mid_items = q_process_to_router.get()
         if not mid_items:
-            print('thr_router:\tbreak')
+            print(u'thr_router:\tbreak\n进程中断，回车结束程序')
+            mid_off = mid
             break
         for mid, item in mid_items:
-            # 结束循环条件一，当前 mid 等于 mid_off
+            thr = pool_items.submit(data_clean_engine, mid, item)
+            ts_items.append(thr)
+            print('mid_router:\t', mid, '\tmid_off:\t', mid_off, '\tmid == mid_off:\t', mid == mid_off)
             if mid == mid_off or program_pause:
+                print(u'thr_router:\treturn\t爬取完毕')
+                if mid == mid_off:
+                    is_loop_finished = True
                 q_router_to_process.put(False)
-                print('thr_router:\treturn')
+                mid_off = mid
                 return
-            else:
-                thr = pool_items.submit(data_clean_engine, mid, item)
-                ts_items.append(thr)
         if _earliest_mid == mid or program_pause:
+            print(u'thr_router:\tbreak\t爬取完毕')
+            if _earliest_mid == mid:
+                is_loop_finished = True
             q_router_to_process.put(False)
-            print('thr_router:\tbreak')
+            mid_off = mid
             break
         else:
             _earliest_mid = mid
-            # TODO 更新 earliest_mid
 
 
 def thr_process():
@@ -352,7 +383,7 @@ def thr_process():
         mid = q_router_to_process.get()
         print('mid_process:\t', mid)
         if mid is False:
-            print('thr_process:\tbreak')
+            print(u'thr_process:\tbreak\n爬取完毕，回车结束程序')
             break
         try:
             e_root = get_e(mid)
@@ -363,7 +394,7 @@ def thr_process():
                 q_router_to_process.put(mid)
                 continue
             else:
-                print('thr_process:\tbreak')
+                print(u'thr_process:\tbreak\n网络信号不稳定')
                 q_process_to_router.put(False)
                 break
         msg_list = get_msg_list(e_root)
@@ -371,30 +402,50 @@ def thr_process():
         times = 0
 
 
+def mid_save():
+    if is_first_time or is_continue:
+        if is_loop_finished:
+            _get_or_set_mid('FINISHED', mid_off)
+        else:
+            _get_or_set_mid('EARLIEST', mid_off)
+    else:
+        # TODO 非首次运行时，程序中止处理
+        pass
+
+
 if __name__ == '__main__':
     # ------------------- init on ---------------------
-    group_path = init_root_dir()
+    group_path, is_first_time = init_root_dir()
+    is_continue = get_is_continue()
     mid_on, mid_off = init_mid()
-    program_pause = False
-    q_router_to_process = Queue(1)
-    q_process_to_router = Queue(1)
-    q_router_to_source = Queue(1)
-    pool_items = ThreadPoolExecutor(20)
-    ts_items = []
-    ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
-    print(444444, threading.active_count())
-    for t in ts:
-        t.start()
-    print(55555, threading.active_count())
-    # ------------------ init off ------------------------
-    print('LOOP ON:')
-    input(u'回车暂停爬取\n')
-    # q_control.put(True)
-    program_pause = True
-    print(11111, threading.active_count())
-    for t in ts:
-        t.join()
-    print(2222, threading.active_count())
-    wait(ts_items)
-    print(3333, threading.active_count())
-    print('LOOP OFF.')
+    if mid_on == mid_off:
+        print(u'暂无新数据')
+    else:
+        program_pause = False
+        is_loop_finished = False
+        q_router_to_process = Queue(1)
+        q_process_to_router = Queue(1)
+        q_router_to_source = Queue(1)
+        pool_items = ThreadPoolExecutor(20)
+        ts_items = []
+        ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
+        print(444444, threading.active_count())
+        for t in ts:
+            t.start()
+        print(55555, threading.active_count())
+        # ------------------ init off ------------------------
+        print('LOOP ON:')
+        input(u'回车中止爬取\n')
+        # q_control.put(True)
+        program_pause = True
+        print(11111, threading.active_count())
+        for t in ts:
+            t.join()
+        print(2222, threading.active_count())
+        wait(ts_items)
+        print(3333, threading.active_count())
+        print('LOOP OFF')
+        # if is_continue:
+        #     _get_or_set_mid('EARLIEST', mid_off)
+        mid_save()
+    print(u'退出程序')
