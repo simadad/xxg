@@ -2,6 +2,7 @@ import re
 import os
 import json
 import time
+import random
 import requests
 from queue import Queue
 from threading import Thread
@@ -263,7 +264,7 @@ def data_clean_engine(msg_name, mid, item):
                 data_clean_func(msg_data_pre, msg_name)
                 break
             except Exception as error:
-                error_func = 'data_clean_func_{type}'.format(type=target_type)
+                error_func = 'data_clean_func_{type}'.format(type=data_type)
                 error_log(error_func, error, mid, i)
 
 
@@ -393,6 +394,7 @@ def thr_router():
             break
         else:
             _earliest_mid = mid
+            time.sleep(random.random()*sleep_times)
 
 
 def thr_process():
@@ -429,6 +431,9 @@ def thr_process():
 
 
 def mid_save():
+    """
+    mid 信息储存
+    """
     if is_first_time or is_continue:
         if is_loop_finished:
             _get_or_set_mid('FINISHED', mid_off)
@@ -454,6 +459,7 @@ if __name__ == '__main__':
         q_router_to_source = Queue(1)
         pool_items = ThreadPoolExecutor(20)
         ts_items = []
+        sleep_times = 1
         ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
         # ------------------ init off ------------------------
         print('LOOP ON:')
