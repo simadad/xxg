@@ -145,7 +145,7 @@ def get_file_path(msg_name, data_type):
 
 def _get_url(_mid):
     """
-    ???ɷ??ʵ?ַ
+    生成访问地址
     """
     data['mid'] = _mid
     data['__rnd'] = __rnd()
@@ -170,7 +170,7 @@ def _save_error_json_file(_mid, r):
 
 def get_e(_mid):
     """
-     ????ȫ?ֱ?�� mid??????ҳ?? etree ??????
+     接收全局变量 mid，生成页面 etree 解析器
     """
     url = _get_url(_mid)
     r = requests.get(url, headers=headers)
@@ -181,8 +181,6 @@ def get_e(_mid):
         error_log('get_e', error, _mid)
         raise ConnectionError
     html = text['data']['html']
-    with open('ttt.html', 'w') as f:
-        f.write(html)
     e = etree.HTML(html)
     if e is None:
         _save_error_json_file(_mid, r)
@@ -237,9 +235,9 @@ def data_target_filter(item):
 
 def text_type_data_clean(msg_data_pre, msg_name):
     """
-    ??????????????ϴ
-    :param msg_data_pre: ??Ϣ???ݽṹ
-    :param msg_name: ??????
+    文字类型数据清洗
+    :param msg_data_pre: 消息内容结构
+    :param msg_name: 发布人
     :return:
     """
     # TODO 处理表情内容
@@ -248,7 +246,7 @@ def text_type_data_clean(msg_data_pre, msg_name):
     file_path = get_file_path(msg_name, 'TEXT')
     msg_text = msg_data_pre.text
     if not msg_text:
-        msg_text = '<????>\n'
+        msg_text = '<表情>\n'
     else:
         msg_text += '\n'
     with open(file_path, 'a', encoding='utf8') as f:
@@ -258,9 +256,9 @@ def text_type_data_clean(msg_data_pre, msg_name):
 
 def image_type_data_clean(msg_data_pre, msg_name):
     """
-    ͼƬ??????????ϴ
-    :param msg_data_pre: ??Ϣ???ݽṹ
-    :param msg_name: ??????
+    图片类型数据清洗
+    :param msg_data_pre: 消息内容结构
+    :param msg_name: 发布人
     """
     global sum_img
     data_url = msg_data_pre.xpath('.//ul//a/@href')[1]
@@ -273,9 +271,9 @@ def image_type_data_clean(msg_data_pre, msg_name):
 
 def audio_type_data_clean(msg_data_pre, msg_name):
     """
-    ??Ƶ??????????ϴ
-    :param msg_data_pre: ??Ϣ???ݽṹ
-    :param msg_name: ??????
+    音频类型数据清洗
+    :param msg_data_pre: 消息内容结构
+    :param msg_name: 发布人
     """
     global sum_audio
     data_url = msg_data_pre.xpath('.//a[last()]/@href')[0]
@@ -288,9 +286,9 @@ def audio_type_data_clean(msg_data_pre, msg_name):
 
 def data_clean_func_reload(data_type):
     """
-    ??????ϴ????????
-    :param data_type: ????????
-    :return: ??????ϴ????
+    数据清洗函数重载
+    :param data_type: 数据类型
+    :return: 数据清洗函数
     """
     target = target_type[data_type]
     return globals()[target.clean_func]
@@ -298,7 +296,7 @@ def data_clean_func_reload(data_type):
 
 def error_log(func, error, mid, times=0):
     """
-    ??????¼
+    错误记录
     """
     print(u'程序错误，请将 etc 文件夹发送给司马咔咔 simadad@sina.com 帮助改进程序')
     error_file = r'{path}\error.txt'.format(path=group_path_etc)
