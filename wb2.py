@@ -1,62 +1,15 @@
 import re
 import os
-import json
 import time
 import random
 import requests
 from queue import Queue
 from threading import Thread
 from lxml.html import etree
-from collections import namedtuple
 from requests.exceptions import ConnectionError
 from concurrent.futures import ThreadPoolExecutor, wait
 
-
-# --------------- 初始配置 ---------------
-# 群 id
-gid = '4101723897939433'
-Cookie = input(u'请输入cookie\n')
-# 根目标配置，空值默认为当前项目文件夹
-root_dir = ''
-# 目标用户名，空值默认为匹配所有用户
-target_names = []
-# 断线重连次数
-reconnect_times = 5
-# ------------- 配置结束 ————————
-
-url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
-
-data = {
-    '_wv': '5',
-    'ajwvr': '6',
-    'gid': gid,
-    '_t': '0',
-    'count': '20',
-    # 'mid': mid,
-    # '__rnd': '',
-}
-# 命名元组 --- 匹配正则式、数据清理函数、文件扩展名
-TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
-
-# 目标数据类型 - 命名元组对照表
-target_type = {
-    'AUDIO': TargetChoice('.//div[@class="private_player_mod"]', 'audio_type_data_clean', 'amr'),
-    'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
-    'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
-}
-
-# 群 gid - 地址对照表
-gid_dict = {
-    '4101723897939433': '宝儿群',
-    # '4167757236964650': '红剪花',
-    # '4176659651822678': '测试群'
-}
-
-headers = {
-    'Cookie': Cookie,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-    'Connection': 'keep-alive',
-}
+from group_init import *
 
 
 def get_and_update_newest_mid():
@@ -102,7 +55,6 @@ def init_root_dir():
     dir_root = _get_root_dir()
     dir_etc, is_new_dir = _get_or_create_dir(dir_root, 'etc')
     dir_data, is_new_dir = _get_or_create_dir(dir_root, 'data')
-    group_name = gid_dict[gid]
     print(u'准备爬取群组:\t', group_name)
     dir_group_data, is_new_dir = _get_or_create_dir(dir_data, group_name)
     dir_group_etc, is_new_dir = _get_or_create_dir(dir_etc, group_name)
@@ -174,7 +126,7 @@ def get_file_path(msg_name, data_type):
     root = _get_root_dir()
     file_dir = '{root_dir}/data/{group_name}/{type}/{username}'.format(
         root_dir=root,
-        group_name=gid_dict[gid],
+        group_name=group_name,
         type=data_type,
         username=msg_name
     )
@@ -457,9 +409,8 @@ if __name__ == '__main__':
         q_router_to_process = Queue(1)
         q_process_to_router = Queue(1)
         q_router_to_source = Queue(1)
-        pool_items = ThreadPoolExecutor(20)
+        pool_items = ThreadPoolExecutor(thr_pool_nums)
         ts_items = []
-        sleep_times = 1
         ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
         # ------------------ init off ------------------------
         print('LOOP ON:')
@@ -472,4 +423,4 @@ if __name__ == '__main__':
         wait(ts_items)
         print('LOOP OFF')
         mid_save()
-    print(u'退出程序')
+    input(u'回车退出\n')
