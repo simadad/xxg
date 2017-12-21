@@ -1,0 +1,19 @@
+{
+        "groups": {
+                "宝儿群": "4101723897939433",
+                "漾漾群": "4130559200451937",
+                "戴恩群": "4032975039169367",
+                "奕儿群": "4028659231324200",
+                "飞歌群": "4116540612355150",
+                "后花园": "4030776238805866",
+                "芷莹群": "4039908592873578",
+                "测试群": "4177033816545111"
+        },
+        "root_dir": "",
+        "target_names": [],
+        "reconnect_times": 5,
+        "thr_pool_nums": 20,
+        "sleep_times": 1,
+        "url_pre": "https://weibo.com/aj/groupchat/getdialog?",
+        "cookie": "SINAGLOBAL=3435881701430.0503.1511069446373; un=simadad@sina.com; wvr=6; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KMhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; wb_cmtLike_2373503412=1; YF-Ugrow-G0=ad83bc19c1269e709f753b172bddb094; ALF=1545312365; SSOLoginState=1513776366; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBhfu6xVMGNquRqdvT18xIT8N4edQMireChZ5cPGM5OvM.; SUB=_2A253PhS-DeThGeRN7FEU8C3Iyj6IHXVUSgF2rDV8PUNbmtBeLWnGkW9NU4_mj2NojO7m5PP5ulfa6d6eBx22jc5Y; SUHB=0ElLrvUIqmXpez; YF-V5-G0=cd5d86283b86b0d506628aedd6f8896e; _s_tentry=login.sina.com.cn; Apache=5489702933054.102.1513776368679; YF-Page-G0=d30fd7265234f674761ebc75febc3a9f; ULV=1513776368758:38:21:5:5489702933054.102.1513776368679:1513726291919; UOR=www.google.com,weibo.com,www.cnblogs.com"
+}

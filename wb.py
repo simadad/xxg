@@ -1,62 +1,15 @@
 import re
 import os
-import json
 import time
+import random
 import requests
-import threading
 from queue import Queue
 from threading import Thread
 from lxml.html import etree
-from collections import namedtuple
 from requests.exceptions import ConnectionError
 from concurrent.futures import ThreadPoolExecutor, wait
 
-
-# --------------- 初始配置 ---------------
-# 群 id
-gid = '4176659651822678'
-Cookie = 'SINAGLOBAL=3435881701430.0503.1511069446373; wb_cmtLike_2373503412=1; wvr=6; UOR=www.google.com,weibo.com,login.sina.com.cn; YF-Ugrow-G0=56862bac2f6bf97368b95873bc687eef; login_sid_t=08250c8ec0fe5f0339a8b672222eae9b; cross_origin_proto=SSL; YF-V5-G0=3d0866500b190395de868745b0875841; WBStorage=82ca67f06fa80da0|undefined; _s_tentry=passport.weibo.com; Apache=3471385025918.8516.1511599490149; ULV=1511599490162:14:14:14:3471385025918.8516.1511599490149:1511494767352; SCF=AnialW-1WRKw7QjY2BjUKntnIU-jjz4LSUlkHBo06bPBt3XmPR-UdUOuUOQSZ3vjl4rW7rbmA-XNuQu9B0RIl9A.; SUB=_2A253HV3MDeThGeRN7FEU8C3Iyj6IHXVUa8gErDV8PUNbmtANLRjEkW9NHetkT1sGu3HNCMTc_4cwCCgdQPN8O9aC; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9W54ln0wJQEAZ8ux9eaQd.q75JpX5KzhUgL.Foz0S0efeheXeKz2dJLoIEBLxK-L12qLBonLxK.LBK.LB-eLxK-L1KzL1KBLxK-L1KzL1KBt; SUHB=05irf0Wq06Qauj; ALF=1543135516; SSOLoginState=1511599516; wb_cusLike_2373503412=N; YF-Page-G0=19f6802eb103b391998cb31325aed3bc'
-# 根目标配置，空值默认为当前项目文件夹
-root_dir = r'C:\Users\AAA\Documents\PrivateFiles\MyDocument\xxg'
-# 目标用户名，空值默认为匹配所有用户
-target_names = []
-# 断线重连次数
-reconnect_times = 5
-# ------------- 配置结束 ————————
-
-url_pre = 'https://weibo.com/aj/groupchat/getdialog?'
-
-data = {
-    '_wv': '5',
-    'ajwvr': '6',
-    'gid': gid,
-    '_t': '0',
-    'count': '20',
-    # 'mid': mid,
-    # '__rnd': '',
-}
-# 命名元组 --- 匹配正则式、数据清理函数、文件扩展名
-TargetChoice = namedtuple('TargetChoice', ('pattern', 'clean_func', 'ext'))
-
-# 目标数据类型 - 命名元组对照表
-target_type = {
-    'AUDIO': TargetChoice('.//div[@class="private_player_mod"]', 'audio_type_data_clean', 'amr'),
-    'IMG': TargetChoice('.//div[@class="pic_b_mod"]', 'image_type_data_clean', 'jpg'),
-    'TEXT': TargetChoice('.//p[@class="page"]', 'text_type_data_clean', 'txt'),
-}
-
-# 群 gid - 地址对照表
-gid_dict = {
-    '4101723897939433': '宝儿群',
-    '4167757236964650': '红剪花',
-    '4176659651822678': '测试群'
-}
-
-headers = {
-    'Cookie': Cookie,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
-    'Connection': 'keep-alive',
-}
+from group_init import *
 
 
 def get_and_update_newest_mid():
@@ -66,9 +19,8 @@ def get_and_update_newest_mid():
     url = 'https://weibo.com/message/history?gid={gid}&type=2'.format(gid=gid)
     r = requests.get(url, headers=headers)
     mid = re.findall(r'mid=(\d+)', r.text)[-1]
-    newest_mid_path = '{group_path}/NEWEST'.format(group_path=group_path)
+    newest_mid_path = '{group_path}/NEWEST'.format(group_path=group_path_etc)
     with open(newest_mid_path, 'w') as f:
-        print('newest_mid:\t', mid)
         f.write(mid)
     return mid
 
@@ -101,14 +53,14 @@ def init_root_dir():
     创建目录树----etc 目录、data 目录
     """
     dir_root = _get_root_dir()
-    _get_or_create_dir(dir_root, 'etc')
+    dir_etc, is_new_dir = _get_or_create_dir(dir_root, 'etc')
     dir_data, is_new_dir = _get_or_create_dir(dir_root, 'data')
-    group_name = gid_dict[gid]
     print(u'准备爬取群组:\t', group_name)
-    dir_group, is_new_dir = _get_or_create_dir(dir_data, group_name)
+    dir_group_data, is_new_dir = _get_or_create_dir(dir_data, group_name)
+    dir_group_etc, is_new_dir = _get_or_create_dir(dir_etc, group_name)
     for _type in target_type:
-        _get_or_create_dir(dir_group, _type)
-    return dir_group, is_new_dir
+        _get_or_create_dir(dir_group_data, _type)
+    return dir_group_etc, is_new_dir
 
 
 def get_is_continue():
@@ -118,7 +70,7 @@ def get_is_continue():
     if is_first_time:
         print(u'首次爬取，请耐心等候，中止程序请回车')
         return False
-    finished_mark = '{group_path}/FINISHED'.format(group_path=group_path)
+    finished_mark = '{group_path}/FINISHED'.format(group_path=group_path_etc)
     if os.path.exists(finished_mark):
         print(u'下载新数据...')
         return False
@@ -138,7 +90,7 @@ def _get_or_set_mid(mid_file, mid=''):
     """
     读取或设置 mid 记录
     """
-    mid_file_path = '{group_path}/{file}'.format(group_path=group_path, file=mid_file)
+    mid_file_path = '{group_path}/{file}'.format(group_path=group_path_etc, file=mid_file)
     if mid or is_first_time:
         with open(mid_file_path, 'w') as f:
             f.write(mid)
@@ -174,7 +126,7 @@ def get_file_path(msg_name, data_type):
     root = _get_root_dir()
     file_dir = '{root_dir}/data/{group_name}/{type}/{username}'.format(
         root_dir=root,
-        group_name=gid_dict[gid],
+        group_name=group_name,
         type=data_type,
         username=msg_name
     )
@@ -204,18 +156,35 @@ def __rnd():
     return str(int(time.time() * 1000))
 
 
+def _save_error_json_file(_mid, r):
+    """
+    保存错误请求信息
+    """
+    error_path = '{path}/error_{mid}.json'.format(
+        path=group_path_etc,
+        mid=_mid
+    )
+    with open(error_path, 'w', encoding='utf8') as f:
+        f.write(r.text)
+
+
 def get_e(_mid):
     """
      接收全局变量 mid，生成页面 etree 解析器
     """
     url = _get_url(_mid)
-    # print('url:\t', url)
     r = requests.get(url, headers=headers)
-    text = json.loads(r.text)
+    try:
+        text = json.loads(r.text)
+    except Exception as error:
+        _save_error_json_file(_mid, r)
+        error_log('get_e', error, _mid)
+        raise ConnectionError
     html = text['data']['html']
-    # with open('ttt_html.html', 'w', encoding='utf8') as f:
-    #     f.write(html)
     e = etree.HTML(html)
+    if e is None:
+        _save_error_json_file(_mid, r)
+        raise ConnectionError
     return e
 
 
@@ -223,30 +192,32 @@ def get_msg_list(e):
     """
      数据粗提取，消息组生成器, 返回(mid - 消息数据)元组
     """
-    items = e.xpath('//div[@node-type="item"]')
+    try:
+        items = e.xpath('//div[@node-type="item"]')
+    except Exception as error:
+        error_log('get_msg_list', error, 0)
+        return False
     for item in items[::-1]:
         mid = item.get('mid')
-        yield mid, item
+        msg_name = item.findtext('.//p[@class="bubble_name"]')
+        yield msg_name, mid, item
 
 
-def data_clean_engine(mid, item):
+def data_clean_engine(msg_name, mid, item):
     """
     数据处理分发函数
     """
     target_data = data_target_filter(item)
     if target_data:
-        msg_name, data_type, msg_data_pre = target_data
+        data_type, msg_data_pre = target_data
         data_clean_func = data_clean_func_reload(data_type)
-        # print('data_type, clean_func:\t', data_type, data_clean_func)
-        # t = Thread(target=data_clean_func, args=(msg_data_pre, msg_name))
         for i in range(1, 6):
             try:
                 data_clean_func(msg_data_pre, msg_name)
                 break
             except Exception as error:
-                error_msg = 'data clean error\n{e}'.format(e=str(error))
-                # print(error_msg)
-                error_log(error_msg, mid, i)
+                error_func = 'data_clean_func_{type}'.format(type=data_type)
+                error_log(error_func, error, mid, i)
 
 
 def data_target_filter(item):
@@ -255,13 +226,11 @@ def data_target_filter(item):
     :param item: 消息整体结构
     :return: 消息内容结构
     """
-    msg_name = item.findtext('.//p[@class="bubble_name"]')
     msg_cont = item.find('.//div[@class="cont"]')
     for data_type, target in target_type.items():
         msg_data_pre = msg_cont.find(target.pattern)
         if msg_data_pre is not None:
-            # print('data_type, pre_data_len:\t', data_type, len(msg_data_pre))
-            return msg_name, data_type, msg_data_pre
+            return data_type, msg_data_pre
 
 
 def text_type_data_clean(msg_data_pre, msg_name):
@@ -273,6 +242,7 @@ def text_type_data_clean(msg_data_pre, msg_name):
     """
     # TODO 处理表情内容
     # TODO 处理链接内容
+    global sum_text
     file_path = get_file_path(msg_name, 'TEXT')
     msg_text = msg_data_pre.text
     if not msg_text:
@@ -281,8 +251,7 @@ def text_type_data_clean(msg_data_pre, msg_name):
         msg_text += '\n'
     with open(file_path, 'a', encoding='utf8') as f:
         f.write(msg_text)
-    # print('text:\t', msg_text)
-    print('TEXT')
+    sum_text += 1
 
 
 def image_type_data_clean(msg_data_pre, msg_name):
@@ -291,12 +260,13 @@ def image_type_data_clean(msg_data_pre, msg_name):
     :param msg_data_pre: 消息内容结构
     :param msg_name: 发布人
     """
+    global sum_img
     data_url = msg_data_pre.xpath('.//ul//a/@href')[1]
     r = requests.get(data_url, headers=headers)
     file_path = get_file_path(msg_name, 'IMG')
     with open(file_path, 'wb') as f:
         f.write(r.content)
-    print('IMG')
+    sum_img += 1
 
 
 def audio_type_data_clean(msg_data_pre, msg_name):
@@ -305,13 +275,13 @@ def audio_type_data_clean(msg_data_pre, msg_name):
     :param msg_data_pre: 消息内容结构
     :param msg_name: 发布人
     """
+    global sum_audio
     data_url = msg_data_pre.xpath('.//a[last()]/@href')[0]
     r = requests.get(data_url, headers=headers)
     file_path = get_file_path(msg_name, 'AUDIO')
     with open(file_path, 'wb') as f:
         f.write(r.content)
-    print('AUDIO')
-    return
+    sum_audio += 1
 
 
 def data_clean_func_reload(data_type):
@@ -324,17 +294,19 @@ def data_clean_func_reload(data_type):
     return globals()[target.clean_func]
 
 
-def error_log(error, mid, times=0):
+def error_log(func, error, mid, times=0):
     """
     错误记录
     """
-    root = _get_root_dir()
-    error_file = r'{root}\etc\error.txt'.format(root=root)
+    print(u'程序错误，请将 etc 文件夹发送给司马咔咔 simadad@sina.com 帮助改进程序')
+    error_file = r'{path}\error.txt'.format(path=group_path_etc)
     with open(error_file, 'a') as f:
-        f.write('mid:\t{mid}\ttimes:\t{times}\n{e}\n\n'.format(
+        f.write(u'mid：{mid}\tfunc：{func}\ttype：{type}\ttimes：{times}\n{e}\n\n'.format(
             e=str(error),
             mid=mid,
-            times=times
+            times=times,
+            type=type(error),
+            func=func
         ))
 
 
@@ -342,35 +314,39 @@ def thr_router():
     """
     调度线程
     """
-    global mid_off, is_loop_finished
+    global mid_off, is_loop_finished, error_shut_down
     _earliest_mid = mid = mid_on
     while True:
         q_router_to_process.put(mid)
         mid_items = q_process_to_router.get()
         if not mid_items:
-            print(u'thr_router:\tbreak\n进程中断，回车结束程序')
+            print(u'程序中断\n网络信号不稳定，请回车退出，稍后再试。')
+            error_shut_down = True
             mid_off = mid
             break
-        for mid, item in mid_items:
-            thr = pool_items.submit(data_clean_engine, mid, item)
-            ts_items.append(thr)
-            print('mid_router:\t', mid, '\tmid_off:\t', mid_off, '\tmid == mid_off:\t', mid == mid_off)
+        for msg_name, mid, item in mid_items:
+            if not target_names or msg_name in target_names:
+                thr = pool_items.submit(data_clean_engine, msg_name, mid, item)
+                ts_items.append(thr)
             if mid == mid_off or program_pause:
-                print(u'thr_router:\treturn\t爬取完毕')
+                print(u'程序中止')
                 if mid == mid_off:
+                    print(u'恭喜，本次数据爬取完毕！')
                     is_loop_finished = True
                 q_router_to_process.put(False)
                 mid_off = mid
                 return
         if _earliest_mid == mid or program_pause:
-            print(u'thr_router:\tbreak\t爬取完毕')
+            print(u'程序中止')
             if _earliest_mid == mid:
+                print(u'恭喜，本次数据爬取完毕！')
                 is_loop_finished = True
             q_router_to_process.put(False)
             mid_off = mid
             break
         else:
             _earliest_mid = mid
+            time.sleep(random.random()*sleep_times)
 
 
 def thr_process():
@@ -381,20 +357,24 @@ def thr_process():
     while True:
         # 从调度线程获取 mid，获取值为 False，循环结束
         mid = q_router_to_process.get()
-        print('mid_process:\t', mid)
+        log_print = u'本次获取数据\t文字条目：{text:<10}图片条目：{img:<10}音频条目：{audio:<10}暂停请回车。'.format(
+            text=sum_text,
+            img=sum_img,
+            audio=sum_audio
+        )
+        print(log_print)
         if mid is False:
-            print(u'thr_process:\tbreak\n爬取完毕，回车结束程序')
+            print(u'回车结束程序。')
             break
         try:
             e_root = get_e(mid)
         except ConnectionError as error:
             times += 1
-            error_log(error, mid, times)
+            error_log('thr_process', error, mid, times)
             if times <= reconnect_times:
                 q_router_to_process.put(mid)
                 continue
             else:
-                print(u'thr_process:\tbreak\n网络信号不稳定')
                 q_process_to_router.put(False)
                 break
         msg_list = get_msg_list(e_root)
@@ -403,6 +383,9 @@ def thr_process():
 
 
 def mid_save():
+    """
+    mid 信息储存
+    """
     if is_first_time or is_continue:
         if is_loop_finished:
             _get_or_set_mid('FINISHED', mid_off)
@@ -415,37 +398,29 @@ def mid_save():
 
 if __name__ == '__main__':
     # ------------------- init on ---------------------
-    group_path, is_first_time = init_root_dir()
+    group_path_etc, is_first_time = init_root_dir()
     is_continue = get_is_continue()
     mid_on, mid_off = init_mid()
     if mid_on == mid_off:
-        print(u'暂无新数据')
+        input(u'暂无新数据，回车退出程序\n')
     else:
-        program_pause = False
-        is_loop_finished = False
+        sum_text = sum_img = sum_audio = 0
+        error_shut_down = is_loop_finished = program_pause = False
         q_router_to_process = Queue(1)
         q_process_to_router = Queue(1)
         q_router_to_source = Queue(1)
-        pool_items = ThreadPoolExecutor(20)
+        pool_items = ThreadPoolExecutor(thr_pool_nums)
         ts_items = []
         ts = [Thread(target=thr_process, name='thr_process'), Thread(target=thr_router, name='thr_router')]
-        print(444444, threading.active_count())
-        for t in ts:
-            t.start()
-        print(55555, threading.active_count())
         # ------------------ init off ------------------------
         print('LOOP ON:')
-        input(u'回车中止爬取\n')
-        # q_control.put(True)
+        for t in ts:
+            t.start()
+        input()
         program_pause = True
-        print(11111, threading.active_count())
         for t in ts:
             t.join()
-        print(2222, threading.active_count())
         wait(ts_items)
-        print(3333, threading.active_count())
         print('LOOP OFF')
-        # if is_continue:
-        #     _get_or_set_mid('EARLIEST', mid_off)
         mid_save()
-    print(u'退出程序')
+    input(u'回车退出\n')
