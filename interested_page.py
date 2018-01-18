@@ -51,11 +51,14 @@ def login():
     while True:
         try:
             image_name, qrcode_qrid = get_qrcode()
-        except:
+        except Exception as e:
+            print(type(e), e.__str__())
+            print(u'网络错误，正在重连')
             continue
         break
-    threading.Thread(target=open_img, name="open", args=(image_name,)).start()
     print(u"请用手机微博扫描二维码")
+    time.sleep(0.5)
+    threading.Thread(target=open_img, name="open", args=(image_name,)).start()
     # 下面判断是否已经扫描了二维码
     statu = 0
     while not statu:
@@ -102,13 +105,19 @@ def login():
     close_img()
 
 
+def image_program_judge(process_name):
+    result = process_name == 'Microsoft.Photos.exe' or \
+        process_name == 'dllhost.exe'
+    return result
+
+
 def close_img():
     """
     关闭图片
     """
     for p in psutil.process_iter():
         # TODO 此处需修改为系统默认图片工具
-        if p.create_time() - time_img < 1 and p.name() == 'Microsoft.Photos.exe':
+        if p.create_time() - time_img < 1 and image_program_judge(p.name()):
             p.kill()
 
 
@@ -229,7 +238,7 @@ def get_reply(nick, r):
         reply = data['msg']
     else:
         reply = u'签到异常'
-    return '{nick:<20}{reply}'.format(nick=nick, reply=reply)
+    return '{nick:{black}<20}{reply}'.format(nick=nick, reply=reply, black=chr(12288))
 
 
 def check_in():
