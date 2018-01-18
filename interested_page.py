@@ -201,9 +201,21 @@ def get_interest_pages_list(uid):
     """
     获取兴趣主页 (nick,uid) 列表
     """
-    url = 'https://weibo.com/p/{uid}/myfollow?relate=interested'.format(uid=uid)
-    r = session.get(url)
-    return re.findall(r'nick=(\w+)&uid=\d+:(\w+)&', r.text)
+    page = 0
+    last = None
+    while True:
+        page += 1
+        url = 'https://weibo.com/p/{uid}/myfollow?relate=interested&Pl_Official_RelationInterested__95_page={page}'.format(
+            uid=uid,
+            page=page
+        )
+        r = session.get(url)
+        p_list = re.findall(r'nick=(\w+)&uid=\d+:(\w+)&', r.text)
+        if last in p_list:
+            break
+        else:
+            yield p_list
+            last = p_list[0]
 
 
 def get_reply(nick, r):
@@ -225,11 +237,12 @@ def check_in():
     签到
     """
     uid = get_uid()
-    pages_list = get_interest_pages_list(uid)
-    for nick, pid in pages_list:
-        r = check_in_page(pid)
-        reply = get_reply(nick, r)
-        print(reply)
+    pages_list_group = get_interest_pages_list(uid)
+    for pages_list in pages_list_group:
+        for nick, pid in pages_list:
+            r = check_in_page(pid)
+            reply = get_reply(nick, r)
+            print(reply)
 
 
 if __name__ == '__main__':
