@@ -105,9 +105,16 @@ def login():
     close_img()
 
 
-def image_program_judge(process_name):
-    result = process_name == 'Microsoft.Photos.exe' or \
-        process_name == 'dllhost.exe'
+def image_program_judge(process: object):
+    """
+    判断是否为图片进程
+    :param process: 近两秒内开启的进程
+    :return: True/False
+    """
+    # print(process)
+    # TODO 此处需修改为系统默认图片工具
+    result = process.name() == 'Microsoft.Photos.exe' or \
+        process.name() == 'dllhost.exe'
     return result
 
 
@@ -116,8 +123,8 @@ def close_img():
     关闭图片
     """
     for p in psutil.process_iter():
-        # TODO 此处需修改为系统默认图片工具
-        if p.create_time() - time_img < 1 and image_program_judge(p.name()):
+        # print(p.create_time(), time_img, p.create_time() - time_img, p.pid)
+        if -1 < p.create_time() - time_img < 1 and image_program_judge(p):
             p.kill()
 
 
