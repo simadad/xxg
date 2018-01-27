@@ -1,4 +1,5 @@
 import re
+import os
 import sys
 import time
 import json
@@ -41,6 +42,7 @@ def open_img(image_name):
         time_img = time.time()
         im.show()
         # print(time_img)
+    os.remove(image_name)
 
 
 def login():
@@ -53,7 +55,8 @@ def login():
             image_name, qrcode_qrid = get_qrcode()
         except Exception as e:
             print(type(e), e.__str__())
-            print(u'网络错误，正在重连')
+            print(u'网络错误，正在重连...')
+            time.sleep(0.5)
             continue
         break
     print(u"请用手机微博扫描二维码")
@@ -105,7 +108,7 @@ def login():
     close_img()
 
 
-def image_program_judge(process: object):
+def image_program_judge(process: psutil.Process):
     """
     判断是否为图片进程
     :param process: 近两秒内开启的进程
@@ -139,7 +142,7 @@ def get_qrcode():
         sys.exit(u"可能微博改了接口!请联系 @司马咔咔 修改")
     qrcode_before_data = qrcode_before_page.text
     qrcode_image = re.search(r'"image":"(?P<image>.*?)"', qrcode_before_data).group("image").replace("\/", "/")
-    qrcode_qrid = re.search(r'"qrid":"(?P<qrid>[\w\-]*)"', qrcode_before_data).group("qrid")
+    qrcode_qrid = re.search(r'"qrid":"(?P<qrid>[\w\-.]*)"', qrcode_before_data).group("qrid")
     qrcode_image = 'http:' + qrcode_image
     cha_page = session.get(qrcode_image, headers=headers)
     image_name = u"cha." + cha_page.headers['content-type'].split("/")[1]
@@ -171,13 +174,17 @@ def is_login():
     try:
         session.cookies.load(ignore_discard=True, ignore_expires=True)
     except:
-        print(u"没有检测到cookie文件")
+        print(u"===没有检测到cookie文件===")
         return False
     url = "http://weibo.com/"
     my_page = session.get(url, headers=headers)
-    if "我的首页" in my_page.text:
+    username_re = re.findall(r"'nick']='(.+)'", my_page.text)
+    if username_re:
+        print(u'----登陆成功----')
+        print(u'---当前登陆账号:\t{user}\t---'.format(user=username_re[0]))
         return True
     else:
+        print(u'===cookie 已过期，请重新登陆===')
         return False
 
 
@@ -262,6 +269,13 @@ def check_in():
 
 
 if __name__ == '__main__':
-    login()
+    if not is_login():
+        login()
     check_in()
-    input(u'签到完毕，回车退出\n')
+    sleep_time = 5
+    print(u'\n===============')
+    time.sleep(1)
+    print(u'{sleep_time}秒后程序自动关闭'.format(sleep_time=sleep_time))
+    for t in range(sleep_time-1, 0, -1):
+        time.sleep(1)
+        print(t)
